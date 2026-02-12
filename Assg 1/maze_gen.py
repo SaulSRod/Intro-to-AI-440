@@ -154,7 +154,7 @@ def find_cell(maze, target):
         maze : list object that contains the specific maze you want to use
         target : string object (either 'S' for start or '!' for end) to find in maze
     """
-    for i in range(0,101):
-        for j in range(0,101):
+    for i in range(0,len(maze)):
+        for j in range(0,len(maze)):
             if maze[i][j] == target:
                 return (i,j)
