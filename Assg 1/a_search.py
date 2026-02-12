@@ -1,4 +1,5 @@
 import heapq
+
 WALL = '%'
 EMPTY = ' '
 START = 'S'
@@ -75,7 +76,7 @@ def reconstructed_path(parent, start, goal):
     path.append(start)
     return list(reversed(path))
 
-def a_start_search(start_cell, goal_cell, known_map):
+def a_start_search(start_cell, goal_cell, known_map, sign):
     """
     Runs a* search from given cell to goal cell using the world knowledge the agent has
     """
@@ -93,7 +94,9 @@ def a_start_search(start_cell, goal_cell, known_map):
     f_cost = h_value + g_value
     
     #initialize heap with start cell
-    heapq.heappush(open_list, (f_cost, g_value, h_value, start_cell))
+    CONSTANT = len(known_map) * len(known_map[0]) + 1
+    priority = CONSTANT * f_cost + (sign * g_value)
+    heapq.heappush(open_list, (priority, g_value, h_value, start_cell))
 
     #keep track of g_value starting with start cell
     g_tracker = dict()
@@ -102,6 +105,8 @@ def a_start_search(start_cell, goal_cell, known_map):
     #Keep track of parents
     parent = dict()
     parent[start_cell] = None
+
+    expansions = 0
 
     while open_list:
         #Pop lowest f_cost in heap
@@ -113,7 +118,7 @@ def a_start_search(start_cell, goal_cell, known_map):
         #Check to see if we reached goal
         if state[3] == goal_cell:
             #print("Found potential goal, reconstructing path")
-            return reconstructed_path(parent, start_cell, goal_cell)
+            return reconstructed_path(parent, start_cell, goal_cell), expansions
 
         #Update closed list as needed
         if current_cell in closed_list:
@@ -121,6 +126,7 @@ def a_start_search(start_cell, goal_cell, known_map):
 
         #Add node to seen
         closed_list.add(current_cell)
+        expansions += 1
 
         #get neighbors
         potential_neighbors = get_neighbors(known_map, state[3])
@@ -148,9 +154,10 @@ def a_start_search(start_cell, goal_cell, known_map):
                 f_cost = h_value + g_tracker[neighbor]
 
                 #Push neighbor into heap 
-                heapq.heappush(open_list, (f_cost, g_tracker[neighbor], h_value, neighbor))
+                priority = CONSTANT * f_cost + (sign * g_tracker[neighbor])
+                heapq.heappush(open_list, (priority, g_tracker[neighbor], h_value, neighbor))
              
-    return False
+    return False, expansions
 
 def update_known_map(true_map, agent_map, current_cell):
     """
@@ -172,7 +179,7 @@ def update_known_map(true_map, agent_map, current_cell):
     return agent_map
     
 
-def repeated_a_star(begin_state, end, true_map):
+def repeated_a_star(begin_state, end, true_map, sign):
     """
     Function that repeatedly runs a* search until goal is reached or all possible cells exhausted
     """
@@ -185,11 +192,15 @@ def repeated_a_star(begin_state, end, true_map):
     #Let agent glance at nearby cells (4 cardinal directions) and update map with knowledge
     known_map = update_known_map(true_map, known_map, current_state)
     #print(potential_neighbors)
+    
+    total_expansions = 0
 
     #Loop to find path or return maze as unsolvable
     while current_state != end:
         #Initiate A* search using known knowledge
-        potential_path = a_start_search(current_state, end, known_map)
+        potential_path, expansions = a_start_search(current_state, end, known_map, sign)
+        total_expansions += expansions
+        
         if potential_path is False:
             return("No path is possible. Maze cannot be solved after all cells are exhausted.")
         
@@ -209,4 +220,64 @@ def repeated_a_star(begin_state, end, true_map):
                 #Update neighbors of current agent cell 
                 known_map = update_known_map(true_map, known_map, current_state)
                 
-    return finalized_path
+    return finalized_path, total_expansions
+
+def repeated_backward_a_star(begin_state, end, true_map, sign):
+    """
+    Function that repeatedly runs Backward A* search until goal is reached.
+    Search direction: Goal -> Current State (in the agent's mind)
+    Agent movement: Current State -> Goal (physically)
+    """
+    #Create knowledge map where every cell is assumed reachable by agent
+    known_map = knowledge_map(true_map)
+    current_state = begin_state
+    #Initialize the finalized path
+    finalized_path = [current_state]
+    
+    #Let agent glance at nearby cells (4 cardinal directions) and update map with knowledge
+    known_map = update_known_map(true_map, known_map, current_state)
+    
+    total_expansions = 0
+
+    #Loop to find path or return maze as unsolvable
+    while current_state != end:
+        # Initiate Backward A* search: From Goal TO Current State
+        # Note: heuristics will be calculated distance(node, current_state) inside a_start_search
+        potential_path, expansions = a_start_search(end, current_state, known_map, sign)
+        total_expansions += expansions
+        
+        if potential_path is False:
+            return("No path is possible. Maze cannot be solved.")
+        
+        # potential_path is [Goal, ..., Next, Current]
+        # We need to traverse it from the end (Current) back to Goal.
+        
+        # The path returned is [StartNode, ..., GoalNode] of the *search*.
+        # Search started at `end` (Goal of maze) and went to `current_state` (Start of search).
+        # So path is [Goal, ..., NextStep, CurrentState].
+        
+        # We want to move from CurrentState -> NextStep.
+        # Iterate backwards from the second to last element
+        
+        # indices: 0=Goal, 1=..., len-2=NextStep, len-1=CurrentState
+        
+        path_blocked = False
+        for i in range(len(potential_path)-2, -1, -1):
+            next_cell = potential_path[i]
+            
+            #Check to see if cell is blocked on true map
+            if true_map[next_cell[0]][next_cell[1]] == WALL:
+                known_map[next_cell[0]][next_cell[1]] = WALL
+                path_blocked = True
+                break
+            else:
+                current_state = next_cell
+                finalized_path.append(current_state)
+                known_map = update_known_map(true_map, known_map, current_state)
+        
+        if not path_blocked and current_state != end:
+             # Should not happen if path was valid and we didn't break, unless we reached end
+             pass
+                
+    return finalized_path, total_expansions
+
