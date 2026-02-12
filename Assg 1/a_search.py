@@ -1,0 +1,212 @@
+import heapq
+WALL = '%'
+EMPTY = ' '
+START = 'S'
+GOAL = '!'
+
+def heuristics(a: tuple, b: tuple) -> float:
+    #Assign x and y cords
+    x1, y1 = a
+    x2, y2 = b
+    #Calculate manhattan distance
+    distance = abs(x1 - x2) + abs(y1 - y2)
+    #print(distance)
+    return distance
+
+def knowledge_map(true_map):
+    """
+    Creates a belief map for agent to keep track of what cells it has visited and if the cell is blocked/unblocked, with each cell initially marked as unblocked.
+    Params:
+        Index0 : ' ' if cell is empty, other wise '#' if wall. Cells not seen will always be assumed empty
+    """
+    map = [[' ' for _ in range(len(true_map))] for _ in range(len(true_map))]
+    return map
+
+def get_neighbors(map, cell: tuple) -> list:
+    """
+    Get all neighbors of a given cell
+    """
+    NORTH, SOUTH, EAST, WEST = +1, -1, +1, -1
+
+    c_x, c_y = cell
+    possible = []
+
+    if c_x + NORTH in range(0, len(map)) and c_y in range(0,len(map[c_x + NORTH])):
+        if map[c_x + NORTH][c_y] == EMPTY:
+            possible.append((c_x + NORTH, c_y))
+
+    if c_x + SOUTH in range(0, len(map)) and c_y in range(0,len(map[c_x + SOUTH])):
+        if map[c_x + SOUTH][c_y] == EMPTY:
+            possible.append((c_x + SOUTH, c_y))
+
+    if c_x in range(0, len(map)) and c_y + EAST in range(0,len(map[c_x])):
+        if map[c_x][c_y + EAST] == EMPTY:
+            possible.append((c_x, c_y + EAST))
+
+    if c_x in range(0, len(map)) and c_y + WEST in range(0,len(map[c_x])):
+        if map[c_x][c_y + WEST] == EMPTY:
+            possible.append((c_x, c_y + WEST))
+
+    #Debug to see why map ranges are out of bounds
+    #print(f"map bounds: x -> {len(map)} y -> {len(map[0])}")
+    return possible
+
+def cell_is_blocked(map, cell):
+    """
+    Check to see if cell is a wall or open
+    """
+    x, y = cell
+    if map[x][y] == WALL:
+        return True
+    return False
+
+def reconstructed_path(parent, start, goal):
+    """
+    Reconstruct the potential path found by a_start_search
+    """
+    path = []
+    path.append(goal)
+    cell = goal
+    while parent[cell] != start:
+        cell = parent[cell]
+        path.append(cell)
+        
+
+    path.append(start)
+    return list(reversed(path))
+
+def a_start_search(start_cell, goal_cell, known_map):
+    """
+    Runs a* search from given cell to goal cell using the world knowledge the agent has
+    """
+    #min heap to track cells we can reach
+    open_list = []
+    #Visited list to track which cells have already been visited
+    closed_list = set()
+    #sample entry for closed_list
+    """
+    Node : (f_cost, g_value, h_value, current cell)
+        manhattan, cost to reach this cell, total cost, parent cell of node being added to closed_list
+    """
+    h_value = heuristics(start_cell, goal_cell)
+    g_value = 0
+    f_cost = h_value + g_value
+    
+    #initialize heap with start cell
+    heapq.heappush(open_list, (f_cost, g_value, h_value, start_cell))
+
+    #keep track of g_value starting with start cell
+    g_tracker = dict()
+    g_tracker[start_cell] = g_value
+
+    #Keep track of parents
+    parent = dict()
+    parent[start_cell] = None
+
+    while open_list:
+        #Pop lowest f_cost in heap
+        state = heapq.heappop(open_list)
+        current_cell = state[3]
+        #print(f"current cell: {current_cell}")
+        #print(state)
+
+        #Check to see if we reached goal
+        if state[3] == goal_cell:
+            #print("Found potential goal, reconstructing path")
+            return reconstructed_path(parent, start_cell, goal_cell)
+
+        #Update closed list as needed
+        if current_cell in closed_list:
+            continue
+
+        #Add node to seen
+        closed_list.add(current_cell)
+
+        #get neighbors
+        potential_neighbors = get_neighbors(known_map, state[3])
+
+        for neighbor in potential_neighbors:
+            #print each neighbor for debug
+            #print(f"possible neighbor:{neighbor}")
+
+            #Skip cell if it is known to be a wall
+            if cell_is_blocked(known_map, neighbor):
+                continue
+            
+            #Get the potential cost to reach this cell
+            potential_g = g_tracker[current_cell] + 1
+            
+            #Push neighbor into open/frontier if they haven't been seen or found cheaper cost
+            if neighbor not in g_tracker or potential_g < g_tracker[neighbor]:
+                #Update g cost
+                g_tracker[neighbor] = potential_g
+                #Update parent of neighbor
+                parent[neighbor] = current_cell
+
+                #Calulate values of neighbor
+                h_value = heuristics(neighbor, goal_cell)
+                f_cost = h_value + g_tracker[neighbor]
+
+                #Push neighbor into heap 
+                heapq.heappush(open_list, (f_cost, g_tracker[neighbor], h_value, neighbor))
+             
+    return False
+
+def update_known_map(true_map, agent_map, current_cell):
+    """
+    Update neighbors the cells current position
+    """
+    all_possible = get_neighbors(agent_map, current_cell)
+    truly_possible = get_neighbors(true_map, current_cell)
+
+    #Get a list of all blocked cells in 4 cardinal directions
+    blocked_cells = [cell for cell in all_possible if cell not in truly_possible]
+    #print(f"all -> {all_possible}")
+    #print(f"true -> {truly_possible}")
+    #print(f"blocked -> {blocked_cells}")
+
+    #Update agent map
+    for neighbor in blocked_cells:
+        agent_map[neighbor[0]][neighbor[1]] == WALL
+    
+    return agent_map
+    
+
+def repeated_a_star(begin_state, end, true_map):
+    """
+    Function that repeatedly runs a* search until goal is reached or all possible cells exhausted
+    """
+    #Create knowledge map where every cell is assumed reachable by agent
+    known_map = knowledge_map(true_map)
+    current_state = begin_state
+    #Initialize the finalized path
+    finalized_path = [current_state]
+    
+    #Let agent glance at nearby cells (4 cardinal directions) and update map with knowledge
+    known_map = update_known_map(true_map, known_map, current_state)
+    #print(potential_neighbors)
+
+    #Loop to find path or return maze as unsolvable
+    while current_state != end:
+        #Initiate A* search using known knowledge
+        potential_path = a_start_search(current_state, end, known_map)
+        if potential_path is False:
+            return("No path is possible. Maze cannot be solved after all cells are exhausted.")
+        
+        #Follow each cell in the found path
+        for i in range(0,len(potential_path)-1):
+            next_cell = potential_path[i+1]
+            #print(next_cell)
+            #Check to see if cell is blocked on true map and reevaluate path as needed
+            if true_map[next_cell[0]][next_cell[1]] == WALL:
+                #print(f"Found a wall at {next_cell}. Restarting at {current_state} with updated map")
+                known_map[next_cell[0]][next_cell[1]] = WALL
+                break
+            #Move agent if cell is open and walkable
+            else:
+                current_state = next_cell
+                finalized_path.append(current_state)
+                #Update neighbors of current agent cell 
+                known_map = update_known_map(true_map, known_map, current_state)
+                
+    return finalized_path
