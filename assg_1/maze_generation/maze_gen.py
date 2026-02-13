@@ -68,7 +68,7 @@ def visit_iterative(hasVisited, maze, startX, startY, NORTH, SOUTH, EAST, WEST, 
             hasVisited.add((nextX, nextY))
             stack.append((nextX, nextY))
 
-def create_maze(print = True, SEED = 1):
+def create_maze(print = False, SEED = 1):
     """
     References: https://inventwithpython.com/recursion/chapter11.html
     """
@@ -114,9 +114,9 @@ def create_maze(print = True, SEED = 1):
     return maze
 
 def create_maze_path():
-    root = Path(__file__).resolve().parent
-
-    DATA = root / "generated_mazes"
+    root = Path(__file__).resolve().parent.parent
+    
+    DATA = root / "mazes_generated"
 
     #Make sure training_data folder exists
     DATA.mkdir(parents= True, exist_ok= True)
@@ -147,7 +147,7 @@ def retrieve_maze(maze_name):
         maze = f.read().splitlines()
     return maze
 
-def find_cell(maze, target):
+def find_cell(maze:list, target:str):
     """
     Function to find either end or start point in maze
     Params:
@@ -158,3 +158,7 @@ def find_cell(maze, target):
         for j in range(0,len(maze)):
             if maze[i][j] == target:
                 return (i,j)
+            
+
+if __name__ == "__main__":
+    print(create_maze_path)
