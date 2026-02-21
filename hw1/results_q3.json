@@ -1,0 +1,19 @@
+[
+  {
+    "maze_id": 0,
+    "bwd": {
+      "found": false,
+      "path_length": -1,
+      "expanded": 87585,
+      "replans": 159,
+      "runtime_ms": 339.8441999888746
+    },
+    "fwd": {
+      "found": false,
+      "path_length": -1,
+      "expanded": 21952,
+      "replans": 162,
+      "runtime_ms": 71.03940000524744
+    }
+  }
+]

@@ -5,10 +5,10 @@ import os
 def printMaze(maze, height, width):
     """Displays the maze"""
 
-    for y in range(height):
-        for x in range(width):
+    for x in range(height):
+        for y in range(width):
             #Display the wall or empty space:
-            print(maze[(x, y)], end='')
+            print(maze[x][y], end='')
         print() 
 
 def visit_iterative(hasVisited, maze, startX, startY, NORTH, SOUTH, EAST, WEST, WIDTH, HEIGHT, rng):

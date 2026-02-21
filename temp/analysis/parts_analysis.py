@@ -15,7 +15,7 @@ def analysis_q2(num_mazes = 50):
     results = []
 
     print(f"Testing Forward A* tie breaker based on cells expanded using {num_mazes} mazes...")
-    print(f"{'Maze':<10} | {'Cells expanded by largest g'} | {'Cells expanded by Smallest g'} | {'Large Time':<10} | {'Small Time':<10} | {'Status'}")
+    print(f"{'Maze':<10} | {'Cells expanded by largest g'} | {'Cells expanded by Smallest g'} | {'Large Time':<10} | {'Small Time':<10} | {'Path Len'}")
     print("-" * 106)
 
     for i in range(1, num_mazes + 1):
@@ -79,8 +79,8 @@ def analysis_q2(num_mazes = 50):
              # The implementations return the path taken.
              # They might differ.
              if abs(len(forward_largest_g) - len(forward_smallest_g)) > 0:
-                 status = "DiffLen"
-                 status = f"Start:{start} | End:{goal} | Large G:{len(forward_largest_g)} | Small G:{len(forward_smallest_g)}"
+                 #status = "DiffLen"
+                 status = f"Large G:{len(forward_largest_g)} | Small G:{len(forward_smallest_g)}"
 
         results.append({
             "Maze": maze_name,
@@ -107,6 +107,104 @@ def analysis_q2(num_mazes = 50):
     #% shown will be negative, which means a reduction in time (good)
     print(f"{'% Improved':<10} | {large_cell_improvement:<27.2f} | {'-':<28} | {large_time_improvement:<10.4f} | {'-':<10} |")
 
+
+def analysis_q2_fig9():
+    """
+    Used to easily compare the number of expanded cells when prioritizing largest g value and smallest g value of Figure 9. 
+    """
+    # Ensure mazes exist or generate them
+    # Compare the results of breaking Repeated foward A* ties by smallest g values vs largest g values
+    results = []
+
+    print(f"Testing Forward A* tie breaker based on cells expanded using Figure 9 maze...")
+    print(f"{'Maze':<10} | {'Cells expanded by largest g'} | {'Cells expanded by Smallest g'} | {'Large Time':<10} | {'Small Time':<10} | {'Path Len'}")
+    print("-" * 106)
+
+    maze_name = f"test_maze_fig9"
+    
+    # Check if maze exists, if not create it
+    try:
+        maze_list = mg.retrieve_maze(maze_name)
+        # CAUTION: retrieve_maze returns a list of strings
+        # a_search expects a 2D list/array or handles list of strings? 
+        # let's check a_search.py knowledge_map: 
+        # map = [[' ' for _ in range(len(true_map))] for _ in range(len(true_map))]
+        # valid if true_map is list of strings too.
+    except FileNotFoundError:
+        print(f"Could not find {maze_name}")
+        return
+
+    # Convert list of strings to list of lists if needed, or dict?
+    # a_search.py functions mostly assume list of lists or similar for indexing [x][y]
+    # BUT strings are not mutable. a_search definitely mutates `known_map`.
+    # `true_map` is only read. `true_map[x][y]` works for list of strings.
+    # So passing list of strings as `true_map` is fine.
+    
+    start = mg.find_cell(maze_list, search.START)
+    goal = mg.find_cell(maze_list, search.GOAL)
+    
+    # Run Repeated Forward A*
+    t0 = time.time()
+    # sign=1 means break ties towards smaller g (default/favored usually? instruction says larger g)
+    # Instruction: "break ties among cells with the same f-value in favor of cells with larger g-values"
+    # Larger g-value = Closer to goal (usually).
+    # In the heap, we pop smallest. 
+    # priority = C * f - g  => larger g gives smaller priority => popped first.
+    # So we want `sign * g` to be negative for larger g. 
+    # So sign should be -1.
+    # Let's verify a_search.py logic:
+    # priority = CONSTANT * f_cost + (sign * g_value)
+    # if sign is -1: larger g => smaller priority => popped earlier. CORRECT.
+    
+    forward_largest_g, forward_largest_g_exp = search.repeated_forward_a_star(start, goal, maze_list, -1)
+    t1 = time.time()
+    largest_g_time = t1 - t0
+
+    # Run Repeated Backward A*
+    t0 = time.time()
+    forward_smallest_g, forward_smallest_g_exp = search.repeated_forward_a_star(start, goal, maze_list, 1)
+    t1 = time.time()
+    smallest_g_time = t1 - t0
+    
+    status = "OK"
+    if isinstance(forward_largest_g, str) or isinstance(forward_smallest_g, str):
+        status = "Fail"
+    elif len(forward_largest_g) != len(forward_smallest_g):
+            # Path lengths might differ if one finds optimal and other doesn't? 
+            # Repeated A* on static grid should find optimal if A* is optimal?
+            # Actually Repeated A* with unobserved obstacles is not guaranteed optimal path *traversal* cost,
+            # but the final path on the map... wait.
+            # The implementations return the path taken.
+            # They might differ.
+            if abs(len(forward_largest_g) - len(forward_smallest_g)) > 0:
+                #status = "DiffLen"
+                status = f"Large G:{len(forward_largest_g)} | Small G:{len(forward_smallest_g)}"
+
+    results.append({
+        "Maze": maze_name,
+        "Fwd_Largest_g": forward_largest_g_exp,
+        "Fwd_Smallest_g": forward_smallest_g_exp,
+        "Largest_g_time": largest_g_time,
+        "Smallest_g_time": smallest_g_time
+    })
+
+    print(f"{maze_name:<10} | {forward_largest_g_exp:<27.2f} | {forward_smallest_g_exp:<28.2f} | {largest_g_time:<10.4f} | {smallest_g_time:<10.4f} | {status}")
+
+    # Calculate averages
+    avg_fwd_large = sum(r["Fwd_Largest_g"] for r in results) 
+    avg_fwd_small = sum(r["Fwd_Smallest_g"] for r in results) 
+    avg_largest_time = sum(r["Largest_g_time"] for r in results)
+    avg_smallest_time = sum(r["Smallest_g_time"] for r in results)
+    
+    print("-" * 106)
+    print(f"{'Average':<10} | {avg_fwd_large:<27.2f} | {avg_fwd_small:<28.2f} | {avg_largest_time:<10.4f} | {avg_smallest_time:<10.4f} |")
+
+    #Calculate how better prioritizing by large is in terms of % improvement
+    large_cell_improvement = (avg_fwd_large - avg_fwd_small)/avg_fwd_small
+    large_time_improvement = (avg_largest_time - avg_smallest_time)/avg_smallest_time
+    #% shown will be negative, which means a reduction in time (good)
+    print(f"{'% Improved':<10} | {large_cell_improvement:<27.2f} | {'-':<28} | {large_time_improvement:<10.4f} | {'-':<10} |")
+
 def analysis_q3(num_mazes = 50):
     # Ensure mazes exist or generate them
     # The assignment likely asks to generate 50 gridworlds
@@ -115,7 +213,7 @@ def analysis_q3(num_mazes = 50):
     results = []
 
     print(f"Running Forward vs Backward Repeated A* experiments on {num_mazes} mazes...")
-    print(f"{'Maze':<10} | {'Fwd Exp':<10} | {'Bwd Exp':<10} | {'Fwd Time':<10} | {'Bwd Time':<10} | {'Status'}")
+    print(f"{'Maze':<10} | {'Fwd Exp':<10} | {'Bwd Exp':<10} | {'Fwd Time':<10} | {'Bwd Time':<10} | {'Path Len'}")
     print("-" * 75)
 
     for i in range(1, num_mazes + 1):
@@ -198,9 +296,6 @@ def analysis_q3(num_mazes = 50):
     print("-" * 75)
     print(f"{'Average':<10} | {avg_fwd:<10.1f} | {avg_bwd:<10.1f} | {'-':<10} | {'-':<10} |")
 
-if __name__ == "__main__":
-    analysis_q3()
-
 
 def analysis_q5(num_mazes = 50):
     """
@@ -266,7 +361,7 @@ def analysis_q5(num_mazes = 50):
              # The implementations return the path taken.
              # They might differ.
              if abs(len(forward_largest_g) - len(adaptive_search)) > 0:
-                 status = f"Start:{start} | End:{goal} | Path Fwd:{len(forward_largest_g)} | Path Adp:{len(adaptive_search)}"
+                 status = f"Len Fwd:{len(forward_largest_g)} | Len Adp:{len(adaptive_search)}"
 
         results.append({
             "Maze": maze_name,
@@ -292,3 +387,6 @@ def analysis_q5(num_mazes = 50):
     adp_time_improvement = (avg_adp_time - avg_fwd_time)/avg_fwd_time
     #% shown will be negative, which means a reduction in time (good)
     print(f"{'% Improved':<10} | {'-':<27} | {adp_cell_improvement:<29.4f} | {'-':<12} | {adp_time_improvement:<13.4f} |")
+
+if __name__ == "__main__":
+    analysis_q3()
