@@ -30,6 +30,7 @@ def convert_to_list(maze, param):
     #Make sure start and end are empty
     grid[0][0] = 0
     grid[param - 1][param - 1] = 0
+    #print(f"start:{grid[0][0]} end:{grid[param - 1][param - 1]}")
     return grid
 
 def printMaze(maze, param):
@@ -97,13 +98,13 @@ def create_maze() -> list:
         for y in range(ROWS):
             #Every space is a wall at first
             maze[(x, y)] = WALLS
-    
+
     #Manually set points to be empty
     maze[(0,0)] = EMPTY
     maze[(100,100)] = EMPTY
 
-    # Carve out the paths in the maze data structure:
-    start_x, start_y = START_NODE
+    # Carve out the paths in the maze data structure using random points
+    start_x, start_y = random.randint(0,ROWS-1), random.randint(0,ROWS-1)
     visit_iterative(hasVisited, maze, start_x, start_y, ROWS, ROWS)
 
     #Convert to 2d list and return

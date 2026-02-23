@@ -28,25 +28,25 @@ In both cases, ties in f-values were broken in favor of larger g-values (and the
 We ran experiments on 50 randomly generated gridworlds (101x101). The table below summarizes the number of cell expansions and runtime for both algorithms.
 
 \begin{center}
-\begin{tabular}{|l|r|r|r|r|}
+\begin{tabular}{|l|r|r|r|r|r|}
 \hline
-\textbf{Maze} & \textbf{Fwd Expansions} & \textbf{Bwd Expansions} & \textbf{Fwd Time (s)} & \textbf{Bwd Time (s)} \\
+\textbf{Maze} & \textbf{Solvable} & \textbf{Forward Cells Exp.} & \textbf{Backward Cells Exp.} & \textbf{Fwd Replans} & \textbf{Bwd Replans} \\
 \hline
-Maze 1 & 53122 & 867400 & 0.1479 & 2.5587 \\ 
-Maze 2 & 155743 & 320669 & 0.3755 & 0.8432 \\
-Maze 3 & 652961 & 1506987 & 1.5181 & 3.7980 \\
-Maze 4 & 2209490 & 2294901 & 5.5176 & 5.7610 \\
-Maze 5 & 181520 & 559091 & 0.4607 & 1.5700 \\
-... & ... & ... & ... & ... \\
-Maze 50 & 214130 & 1058216 & 0.5461 & 2.5932 \\
+Maze 0  & False & 22906 & 182213 & 142 & 144 \\
+Maze 1  & False & 17763 & 81462  & 79  & 77  \\
+Maze 2  & False & 17085 & 28740  & 83  & 81  \\
+Maze 3  & True  & 13190 & 143234 & 135 & 134 \\
+Maze 4  & True  & 9605  & 190932 & 96  & 108 \\
+... & ... & ... & ... & ... & ... \\
+Maze 49 & False & 1     & 10198  & 0   & 0   \\
 \hline
-\textbf{Average} & \textbf{224415.9} & \textbf{740341.8} & \textbf{approx 0.5s} & \textbf{approx 1.8s} \\
+\textbf{Average} & \textbf{---} & \textbf{8637.8} & \textbf{83229.56} & \textbf{62.8} & \textbf{63.6} \\
 \hline
 \end{tabular}
 \end{center}
 
 \subsection*{Analysis}
-\textbf{Observation:} Repeated Backward A* consistently expanded significantly more nodes than Repeated Forward A* (approximately 3.3 times more on average). 
+\textbf{Observation:} Repeated Backward A* consistently expanded significantly more nodes than Repeated Forward A* (approximately 10 times more on average). 
 
 \textbf{Reasoning:}
 In Repeated A*, the agent performs a new search from scratch whenever it encounters an obstacle. 

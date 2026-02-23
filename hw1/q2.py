@@ -215,7 +215,7 @@ def update_known_map(true_map: list, agent_map: list, current_cell: tuple):
 
     #Update agent map
     for neighbor in blocked_cells:
-        agent_map[neighbor[0]][neighbor[1]] == BLOCKED
+        agent_map[neighbor[0]][neighbor[1]] = BLOCKED
     
     return agent_map
 
